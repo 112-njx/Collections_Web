@@ -1,41 +1,42 @@
 ---
-title: "TypeScript Best Practices for Clean, Maintainable Code"
-publishedAt: "2024-12-08"
-updatedAt: "2024-12-08"
-author: "John Doe"
-summary: "Essential TypeScript patterns and practices that will make your codebase more robust and easier to maintain."
-image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=192&fit=crop"
+title: "Vue3 + TypeScript：Agent 前端工程化小记"
+publishedAt: "2026-09-05"
+updatedAt: "2026-09-05"
+author: "聂久翔"
+summary: "从响应式数据流到 WebSocket 流式推送，记录我在 Agent 类产品前端里沉淀的 Vue3 + TS 实践经验。"
 ---
 
-# TypeScript Best Practices for Clean, Maintainable Code
+# Vue3 + TypeScript：Agent 前端工程化小记
 
-TypeScript shines when it helps you model reality — not when it forces you to fight types all day. A few small defaults can make a codebase feel <mark>calmer, safer, and easier to refactor</mark>.
+Agent 产品的前端有个特殊挑战：**状态不是静态的**。节点在跑、消息在流、任务在排队，界面要实时反映一个"正在思考"的系统。我在股票策略平台前端（Vue3 + TypeScript）里沉淀了几条经验。
 
-<MediaContainer
-  src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&fit=crop"
-  alt="TypeScript code on screen"
-/>
+## 组合式 API 组织"进行中"的状态
 
-## Practical rules of thumb
-
-- Turn on strictness and fix the sharp edges early.
-- Prefer readable types over clever types.
-- Use unions for “one of these”, interfaces for “shape of this”.
-- Avoid `any` as a shortcut; it becomes ~~future debt~~ fast.
-
-## One pattern worth memorizing
+一个回测任务的生命周期：提交 → 节点执行（逐个状态刷新）→ 完成/失败。用 `ref` + `computed` 把任务状态机抽成可组合函数：
 
 ```ts
-type Result<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: string };
-
-export function parseNumber(input: string): Result<number> {
-  const n = Number(input);
-  return Number.isFinite(n) ? { ok: true, value: n } : { ok: false, error: "Not a number" };
-}
+const { task, nodes, progress, subscribe } = useBacktestTask()
 ```
 
-## Wrap-up
+每个智能体节点独立维护状态与耗时，`computed` 派生出整体进度，模板只做声明式渲染，逻辑全部在 composable 里可测试。
 
-The best TypeScript code reads like good documentation: clear names, predictable shapes, and errors that point you to the fix.
+## WebSocket：流式推送而不是轮询
+
+节点状态与耗时通过 WebSocket 实时推送。前端做**增量合并**：服务端只发变更的节点，客户端用 `Map` 按节点 id 更新，避免整包覆盖导致闪烁。断线自动重连 + 心跳检测，重连后请求增量补拉，保证 UI 与服务端状态一致。
+
+## 类型即文档
+
+Agent 链路的消息结构天然复杂（文本、指标、代码片段、节点状态），我用 TypeScript 定义联合类型：
+
+```ts
+type AgentMessage =
+  | { kind: "analysis"; content: string }
+  | { kind: "metrics"; payload: BacktestMetrics }
+  | { kind: "code"; payload: StrategyCode }
+```
+
+这样每个渲染分支都有类型保障，重构节点协议时编译器会先报错，而不是运行时才发现。
+
+## 小结
+
+Agent 前端不是"表格 + 按钮"，而是**过程可视化**：让用户看到 Agent 每一步在做什么、花了多久、为什么降级。把这种状态流用组合式 API 管好，前端就能真正成为 Agent 能力的放大器。

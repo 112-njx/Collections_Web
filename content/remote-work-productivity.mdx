@@ -1,43 +1,44 @@
 ---
-title: "Mastering Remote Work: Productivity Tips from a Digital Nomad"
-publishedAt: "2024-11-25"
-updatedAt: "2024-11-25"
-author: "John Doe"
-summary: "Practical strategies for staying productive, focused, and balanced while working remotely, based on years of experience."
-image: "https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=192&fit=crop"
+title: "Docker Compose + Nginx 一键部署：从本地到服务器"
+publishedAt: "2026-08-25"
+updatedAt: "2026-08-25"
+author: "聂久翔"
+summary: "AI Agent 股票策略平台的部署实践：Docker Compose 编排、Nginx 反向代理、Prometheus/Grafana 监控告警与 Alembic 迁移。"
 ---
 
-# Mastering Remote Work: Productivity Tips
+# Docker Compose + Nginx 一键部署：从本地到服务器
 
-Remote work is less about “working from anywhere” and more about building routines that protect your focus and your energy. A few small defaults go a long way.
+一个 Agent 平台想真正"跑起来"，靠本地开发环境是不够的——数据库、消息队列、模型服务、回测任务，每个组件都要在服务器上各就各位。我在股票策略平台里用 Docker Compose 把这些串了起来。
 
-> Remote work works best when your day has clear starts, clear stops, and fewer context switches.
+## 编排：一个文件描述整个系统
 
-## Common challenges
+```yaml
+services:
+  api:        # FastAPI 应用
+  worker:     # Celery 回测任务
+  redis:      # 缓存 + 队列
+  postgres:   # 业务库 + pgvector
+  nginx:      # 反向代理
+  prometheus: # 监控采集
+  grafana:    # 监控面板
+```
 
-- Home distractions
-- Blurry work/life boundaries
-- Fewer casual social touchpoints
-- Async communication gaps
+`docker compose up -d` 一键拉起，本地与服务器环境完全一致，告别"在我机器上能跑"。
 
-## Daily routine checklist (example)
+## Nginx：网关与静态资源的职责分离
 
-| Habit | Why it helps
-|------|--------------
-| Dedicated workspace | Signals "work mode"
-| Plan top 3 tasks | Reduces overwhelm
-| Deep work block | Protects focus
-| Walk / stretch break | Prevents burnout
-| Shutdown ritual | Creates a clear end
+- `/api/*` 反代到 FastAPI 服务，`/` 服务前端构建产物；
+- WebSocket 长连接需要开启 `Upgrade` 头转发，否则心跳会断开；
+- 上游加 `limit_req` 限流，保护行情数据源。
 
-## Tools (keep it minimal)
+## 可观测：出了问题先看面板
 
-- [x] Pick one task tracker (e.g. Linear / GitHub Issues)
-- [ ] Pick one notes app (e.g. Notion / Obsidian)
-- [ ] Keep a single calendar (e.g. Google Calendar)
-- [ ] Turn on Focus / Do Not Disturb during deep work
-- [ ] Prefer async updates; use chat for blockers only
+Prometheus 采集 API 请求量、延迟、队列积压与资源使用，Grafana 出面板和告警。策略回测任务的队列深度是最重要的指标——积压意味着用户要等很久，需要告警触发扩容。
 
-## Wrap-up
+## 数据库迁移：Alembic 统一管理
 
-Start with one routine change (workspace + “top 3 tasks”) and one boundary (a daily shutdown time). Once those stick, iterate.
+模型改动同步 `alembic revision` 生成迁移脚本，部署时自动 `upgrade head`。多实例并发部署也不会出现"表结构不一致"的问题。
+
+## 小结
+
+部署的本质是**把不确定性移出团队记忆**：环境、端口、迁移、告警，全部写进配置文件。这样任何一台新服务器都能在十分钟内复现整个平台。

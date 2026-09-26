@@ -23,16 +23,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(DATA.url),
   title: {
-    default: DATA.name,
+    default: `${DATA.name} · AI 应用开发工程师`,
     template: `%s | ${DATA.name}`,
   },
   description: DATA.description,
   openGraph: {
-    title: `${DATA.name}`,
+    title: `${DATA.name} · AI 应用开发工程师`,
     description: DATA.description,
     url: DATA.url,
-    siteName: `${DATA.name}`,
-    locale: "en_US",
+    siteName: `${DATA.name} 的个人主页`,
+    locale: "zh_CN",
     type: "website",
   },
   robots: {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     },
   },
   twitter: {
-    title: `${DATA.name}`,
+    title: `${DATA.name} · AI 应用开发工程师`,
     card: "summary_large_image",
   },
   verification: {
@@ -62,7 +62,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased relative",
@@ -83,7 +83,7 @@ export default function RootLayout({
                 }}
               />
             </div>
-            <div className="relative z-10 max-w-2xl mx-auto py-12 pb-24 sm:py-24 px-6">
+            <div className="relative z-10 max-w-5xl mx-auto py-12 pb-24 sm:py-24 px-6">
               {children}
             </div>
             <Navbar />

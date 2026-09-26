@@ -1,33 +1,31 @@
 ---
-title: "REST API Design Principles That Stand the Test of Time"
-publishedAt: "2024-12-12"
-updatedAt: "2024-12-12"
-author: "John Doe"
-summary: "Learn how to design APIs that developers love to use and are easy to maintain."
-image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=192&fit=crop"
+title: "FastAPI 轻量后端工程实践：从路由到异步任务"
+publishedAt: "2026-07-15"
+updatedAt: "2026-07-15"
+author: "聂久翔"
+summary: "在 AI Agent 项目中用 FastAPI 搭建轻量后端：Pydantic 校验、异步依赖注入、任务队列与接口分层。"
 ---
 
-# REST API Design Principles That Stand the Test of Time
+# FastAPI 轻量后端工程实践：从路由到异步任务
 
-Great APIs feel boring in the best way: predictable, consistent, and easy to reason about. When the surface area is simple, teams ship faster and clients break less often.
+写 Agent 类产品时，后端最重要的不是"重"，而是**快和清晰**——接口要能跟得上模型调用链路的节奏。FastAPI 在这方面非常顺手。
 
-This is a lightweight checklist you can keep in mind while designing new endpoints or reviewing an existing API.
+## Pydantic 模型即校验层
 
-## Core principles
+FastAPI 把请求校验内置在类型系统里：`class OrderQuery(BaseModel)` 一写，字段约束、嵌套结构、错误信息全部自动生成。省掉了 Java 里常见的"DTO + 手动校验 + 异常捕获"三件套。
 
-- Use clear, consistent **resource names** (think nouns).
-- Keep behavior aligned with **HTTP semantics** (read vs write).
-- Return **consistent response shapes** so clients don’t guess.
-- Prefer **sane defaults** with optional query parameters for filtering/sorting.
+## 异步优先
 
-## A simple checklist
+Agent 后端几乎全是 IO 密集：调 DeepSeek API、查 Redis、写 PostgreSQL。用 `async def` 路由 + `httpx.AsyncClient`，单机就能扛住并发模型调用；配合 `asyncio.gather` 可以并行发起多个上游请求（比如同时查多个行情源），把整体延迟压下来。
 
-1. Pick stable resource paths (plural nouns are a common convention).
-2. Use a small set of status codes consistently.
-3. Document pagination and what “next/previous” means.
-4. Be explicit about authentication and authorization requirements.
-5. Add brief examples in docs for the “happy path” and common errors.
+## 任务交给 Celery
 
-## Wrap-up
+策略回测这类耗时任务不能堵在请求线程里。我的做法是：接口层只负责"接单"，把任务丢进 Celery 队列，前端通过轮询或 WebSocket 拿进度。任务函数里再做进程隔离与资源限制，保证用户代码跑得再野也不影响主服务。
 
-If you optimize for consistency first, your API will be easier to document, easier to test, and easier for others to adopt.
+## 分层心得
+
+```
+routes（参数与权限） → services（业务编排） → agents（模型调用） → repos（数据访问）
+```
+
+每层只干一件事，调试模型链路时能顺着调用栈快速定位问题。这也是我在实习里升级老 OA 模块时坚持的底线——**再小的接口，也要有清晰的边界**。

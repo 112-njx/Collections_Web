@@ -1,146 +1,33 @@
 ---
-title: "Building Scalable Design Systems with React and Tailwind"
-publishedAt: "2024-12-01"
-updatedAt: "2024-12-01"
-author: "John Doe"
-summary: "A comprehensive guide to creating maintainable design systems that scale with your team and product."
-image: "https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800&h=192&fit=crop"
+title: "MySQL 索引、事务与 SQL 调优实战笔记"
+publishedAt: "2026-07-28"
+updatedAt: "2026-07-28"
+author: "聂久翔"
+summary: "围绕索引失效、事务隔离级别与慢 SQL 优化，记录我在项目与实习中沉淀的 MySQL 实战经验。"
 ---
 
-Design systems are the backbone of consistent user interfaces. Here's how to build one that scales.
+# MySQL 索引、事务与 SQL 调优实战笔记
 
-## Why Design Systems Matter
+## 索引不是越多越好
 
-A well-crafted design system provides:
+最常见的坑是"见列就建索引"。实践中索引的选择遵循几条朴素原则：
 
-- **Consistency** across all products
-- **Faster development** with reusable components
-- **Better collaboration** between designers and developers
-- **Reduced technical debt** over time
+- 区分度高的列放联合索引左侧（如 `status + created_at` 优于反序）；
+- 覆盖索引能省回表，查询列表尽量与索引列对齐；
+- 最左前缀要记牢：`(a, b, c)` 索引能服务 `a`、`a,b`、`a,b,c`，但跳过 `b` 直接查 `c` 就失效了。
 
-## Core Principles
+## 事务与锁
 
-### 1. Start with Tokens
+- **隔离级别**：默认 RR（可重复读），但很多读多写少的业务用 RC 更合适，能减少间隙锁导致的并发阻塞；
+- **锁粒度**：批量更新优先按主键排序再更新，避免死锁；`SELECT ... FOR UPDATE` 只锁真正要改的行；
+- **一致性读**：长事务会撑大 undo log，能拆短就拆短。
 
-Design tokens are the atomic values of your system:
+## 慢 SQL 三板斧
 
-```typescript title="tokens.ts"
-export const tokens = {
-  colors: {
-    primary: {
-      50: '#eff6ff',
-      500: '#3b82f6',
-      900: '#1e3a8a',
-    },
-    neutral: {
-      0: '#ffffff',
-      100: '#f5f5f5',
-      900: '#171717',
-    },
-  },
-  spacing: {
-    xs: '0.25rem',
-    sm: '0.5rem',
-    md: '1rem',
-    lg: '1.5rem',
-    xl: '2rem',
-  },
-  radii: {
-    sm: '0.25rem',
-    md: '0.5rem',
-    lg: '1rem',
-    full: '9999px',
-  },
-} as const;
-```
+1. `EXPLAIN` 看 `type`：尽量到 `range`/`ref`，出现 `ALL` 就要警惕全表扫描；
+2. 看 `rows` 与 `filtered`：估算扫描行数，配合 `profile` 定位耗时阶段；
+3. 排序与分组尽量走索引，`filesort`/`temporary` 出现时考虑调整索引或改写 SQL。
 
-### 2. Build Primitive Components
+## 写在最后
 
-Start with the basics:
-
-```tsx title="Button.tsx"
-import { cva, type VariantProps } from "class-variance-authority";
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md font-medium transition-colors",
-  {
-    variants: {
-      variant: {
-        primary: "bg-primary text-white hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-      },
-      size: {
-        sm: "h-8 px-3 text-sm",
-        md: "h-10 px-4",
-        lg: "h-12 px-6 text-lg",
-      },
-    },
-    defaultVariants: {
-      variant: "primary",
-      size: "md",
-    },
-  }
-);
-
-interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
-
-export function Button({ variant, size, className, ...props }: ButtonProps) {
-  return (
-    <button className={buttonVariants({ variant, size, className })} {...props} />
-  );
-}
-```
-
-## Component Composition
-
-Build complex components from primitives:
-
-| Level | Examples | Purpose |
-|-------|----------|---------|
-| Tokens | Colors, spacing, typography | Foundation |
-| Primitives | Button, Input, Badge | Building blocks |
-| Patterns | Card, Modal, Dropdown | Common UI patterns |
-| Templates | PageHeader, Sidebar | Layout structures |
-
-## Documentation is Key
-
-> "A design system without documentation is just a component library."
-
-Every component should include:
-
-1. **Usage examples** - Show common use cases
-2. **Props documentation** - Explain all options
-3. **Accessibility notes** - ARIA labels, keyboard nav
-4. **Do's and Don'ts** - Guide proper usage
-
-## Versioning Strategy
-
-```json title="package.json"
-{
-  "name": "@company/design-system",
-  "version": "2.1.0",
-  "peerDependencies": {
-    "react": "^18.0.0",
-    "tailwindcss": "^3.0.0"
-  }
-}
-```
-
-Use semantic versioning:
-- **Major**: Breaking changes
-- **Minor**: New features (backward compatible)
-- **Patch**: Bug fixes
-
-## Conclusion
-
-Building a design system is an investment that pays dividends in:
-
-- Developer productivity
-- Design consistency
-- User experience
-- Team collaboration
-
-Start small, iterate often, and document everything.
+调优的本质是**理解数据分布**。同样的 SQL，在 10 万行和 1000 万行的表上结论可能完全不同——先看数据，再谈优化。

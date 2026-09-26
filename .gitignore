@@ -38,3 +38,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .content-collections
+
+# 本地归档 / 验证 / 日志 / 缓存
+public/_template_assets/
+.preview/
+.npm-cache/
+.dev*.log
+.dev-server*.log
+.next-dev*.log
+.build-output.log
+pnpm-lock.yaml

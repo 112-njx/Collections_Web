@@ -1,36 +1,39 @@
 ---
-title: "Testing React Applications: A Practical Guide"
-publishedAt: "2024-12-14"
-updatedAt: "2024-12-14"
-author: "John Doe"
-summary: "From unit tests to E2E—learn how to build confidence in your React applications with comprehensive testing."
-image: "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&h=192&fit=crop"
+title: "Python 沙箱与安全执行：如何让用户代码不拖垮服务"
+publishedAt: "2026-09-02"
+updatedAt: "2026-09-02"
+author: "聂久翔"
+summary: "策略平台允许用户提交自写代码执行，如何保证安全？从资源限制到进程隔离，再到异步队列控并发。"
 ---
 
-# Testing React Applications: A Practical Guide
+# Python 沙箱与安全执行：如何让用户代码不拖垮服务
 
-Tests are your safety net — they let you refactor with confidence and ship changes without fear. The goal is not “as many tests as possible”; it’s <mark>confidence in the critical paths</mark>.
+股票策略平台有个高风险特性：用户提交的量化策略代码要在服务器上**真实执行**（回测）。用户代码可能是无限循环、疯狂申请内存，甚至是恶意的系统调用。安全执行是上线前必须解决的核心问题。
 
-If your test suite feels slow or fragile, it usually means you’re testing the wrong thing. In practice, you can ignore a lot of “perfect coverage” advice and focus on a few high-signal habits.
+## 第一层：进程隔离
 
-## What to test (a simple rule)
+用户代码不在 Web 服务进程里跑，而是放进**独立子进程**。子进程崩溃、被杀、耗尽资源，主服务毫无感知。回测逻辑只在这个隔离进程里运行，与 API 服务物理隔离。
 
-- **Unit tests**: small, fast checks for logic and pure functions.
-- **Integration tests**: components + data + user flows (most value per test).
-- **E2E tests**: a few happy-path checks across the whole app.
+## 第二层：资源限制
 
-## High-signal testing habits
+光隔离还不够，进程可以吃光整台机器。我做了三层限制：
 
-- Prefer user-facing assertions (what the user sees/does).
-- Use accessible queries first (roles, labels).
-- Mock at the boundary (network) instead of mocking implementation details.
+- **CPU**：子进程绑定 CPU 时间上限，死循环自动终止；
+- **内存**：限制进程内存配额，超限即 kill；
+- **文件/网络**：工作目录沙箱化，屏蔽危险系统调用。
 
-## Things to avoid
+```text
+用户代码 → 沙箱进程（CPU/内存受限） → 结果或异常 → 回填任务结果
+```
 
-- ~~Testing internal component state~~ when behavior is what matters.
-- ~~Sprinkling test IDs everywhere~~ as a first choice.
-- Overusing snapshots that fail for harmless UI changes.
+## 第三层：异步队列控并发
 
-## Wrap-up
+单机同时跑几百个回测会互相抢资源。任务统一进 **Celery 队列**，用 worker 并发数 + 任务超时兜底，保证任何时刻在跑的沙箱进程数量可控。
 
-Start small: one integration test for your most important flow, then add unit tests for tricky logic. Over time, your tests become living documentation that helps you move faster.
+## 第四层：可观测
+
+每次执行记录耗时、资源峰值、退出码。异常任务自动重试或标记失败，用户在前端能看到"回测失败原因"，而不是一个卡死的按钮。
+
+## 一点反思
+
+安全执行没有银弹，只有纵深防御：**隔离 + 限额 + 限流 + 观测**四层叠加。这也是我在实习里修复 SSO 认证绕过问题时的体会——安全永远是设计出来的，不是补丁补出来的。

@@ -1,56 +1,36 @@
 ---
-title: "10 Next.js Performance Tips for Production Apps"
-publishedAt: "2024-12-05"
-updatedAt: "2024-12-05"
-author: "John Doe"
-summary: "Practical optimization techniques to make your Next.js applications blazing fast in production."
-image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=192&fit=crop"
+title: "Three.js 车模 3D 展示：WebGL 渲染工程实践"
+publishedAt: "2026-08-15"
+updatedAt: "2026-08-15"
+author: "聂久翔"
+summary: "作为个人主页的视觉核心，我把一辆汽车模型搬进浏览器：GLTF 加载、PBR 材质、自动旋转与主题自适应。"
 ---
 
-Performance isn't optional—it's a feature. Here are battle-tested tips for optimizing Next.js apps.
+# Three.js 车模 3D 展示：WebGL 渲染工程实践
 
-# 2. Optimize Images
+个人主页需要一个"一眼记住"的视觉锚点，我选择了 Three.js 车模——既展示图形学功底，又是整个页面最抓眼球的部分。
 
-Always use `next/image`
+## 模型加载与场景搭建
 
-```tsx
-import Image from 'next/image';
+- 用 `useGLTF` 加载 GLB 模型，Suspense 包裹实现加载态；
+- 场景由 `Canvas`（React Three Fiber）承载：环境光 + 定向光 + 补光三层布光，`ContactShadows` 做地面投影，让模型"立"在页面上而不是悬浮；
+- `OrbitControls` 开启自动旋转，用户拖拽可自由观察，缩放禁用避免误操作。
 
-export function Hero() {
-  return (
-    <Image
-      src="/hero.jpg"
-      alt="Hero image"
-      width={1200}
-      height={600}
-      priority // Load immediately for LCP
-      placeholder="blur"
-      blurDataURL="data:image/jpeg;base64,..."
-    />
-  );
-}
-```
+## PBR 材质与性能
 
+- 车漆用高金属度 + 低粗糙度的 `MeshStandardMaterial`，在反光下更有质感；
+- `dpr` 限制在 1.6，移动端不至于掉帧；
+- 明暗主题切换时，车漆与玻璃颜色随 `next-themes` 动态变化，白天靛蓝、夜间淡紫，和页面整体调性一致。
 
-## 4. Implement Proper Caching
+## 模型接入方案
 
-| Strategy | Use Case | TTL |
-|----------|----------|-----|
-| `force-cache` | Static data | Forever |
-| `revalidate: 3600` | Semi-static | 1 hour |
-| `revalidate: 60` | Frequently updated | 1 minute |
-| `no-store` | Real-time data | Never cache |
+目前页面运行的是程序化低多边形车模（保证任何环境都能流畅展示）。接入真实模型只需两步：
 
-## 5. Minimize Client Components
+1. 把 `car.glb` 放入 `public/models/`；
+2. 打开组件里的 `USE_GLTF_MODEL` 开关。
 
-Every `'use client'` directive adds to your JavaScript bundle. Keep client components small and focused:
+灯光、阴影、旋转逻辑全部复用，不用改任何场景代码。
 
-## 6. Bundle Analysis
+## 小结
 
-```bash title="terminal"
-# Install analyzer
-npm install @next/bundle-analyzer
-
-# Run analysis
-ANALYZE=true npm run build
-```
+WebGL 的难点不在"画出来"，而在**性能与体验的平衡**：该用 `useMemo` 的地方不重复构建几何体，该限制的帧率预算绝不手软。车模项目让我把这些原则都过了一遍。

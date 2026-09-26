@@ -1,38 +1,33 @@
 ---
-title: "Git Workflow Guide: From Chaos to Clarity"
-publishedAt: "2024-12-10"
-updatedAt: "2024-12-10"
-author: "John Doe"
-summary: "Master Git workflows that keep your team productive and your codebase healthy."
-image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=800&h=192&fit=crop"
+title: "Redis 在 Agent 系统里的三处关键应用"
+publishedAt: "2026-08-05"
+updatedAt: "2026-08-05"
+author: "聂久翔"
+summary: "多级缓存扛行情流量、心跳与断线增量拉取、队列与限流——Redis 在 AI Agent 股票策略平台里的三个使用场景。"
 ---
 
-# Git Workflow Guide: From Chaos to Clarity
+# Redis 在 Agent 系统里的三处关键应用
 
-Git is powerful, but teams usually struggle because they don’t agree on a few basics. A simple workflow keeps history readable, reviews focused, and releases less stressful.
+## 多级缓存：行情毫秒级响应
 
-This is a lightweight guide you can adopt in a day and iterate on later.
+行情数据的特点是**读多写极少**（一次拉取、多次查询）。我用 Redis 做多级缓存的第一级：热点股票的快照与 K 线直接走内存，命中即返回，毫秒级响应；缓存未命中才回源数据源。
 
-## A simple team workflow
+```text
+请求 → Redis 缓存 → Akshare 数据源 → 回填缓存
+```
 
-- Branch from `main` for every change.
-- Keep branches small and short-lived.
-- Open a pull request early and ask for review.
-- Merge back to `main` once tests pass.
+配合过期时间与主动失效，既保证了新鲜度，又把对数据源的请求量压到最低。
 
-## Commit message tips
+## WebSocket 心跳 + 断线增量拉取
 
-- Start with a clear verb (“add”, “fix”, “remove”, “refactor”).
-- Keep the first line short and specific.
-- Prefer multiple small commits over one giant “WIP”.
+前端与后端维持 WebSocket 长连接，Redis 记录连接心跳。断线重连后，客户端只需告诉服务端"我最后一条数据是 10:32:07 的"，服务端用 Redis 里的时间戳做增量拉取——避免整包重发，节省带宽也降低限流风险。
 
-## PR checklist
+## 队列与限流
 
-1. Explain what changed and why.
-2. Link the issue or describe the user impact.
-3. Add tests (or explain why not).
-4. Keep the diff small enough to review quickly.
+- **异步任务去重**：Celery 任务幂等键写入 Redis，防止重复回测；
+- **接口限流**：`INCR + EXPIRE` 实现滑动窗口，保护行情数据源不被高频打到 IP 限流；
+- **分布式锁**：多实例部署时用 `SET NX EX` 保证同一策略不同时跑两遍。
 
-## Wrap-up
+## 一句总结
 
-The goal isn’t “perfect Git” — it’s fewer surprises and faster collaboration. Start simple, write down the rules, and improve them as your team grows.
+Redis 在 Agent 系统里不是"缓存工具"，而是**状态层**：谁在线、谁跑过什么、哪个源还剩多少配额，全在这里。

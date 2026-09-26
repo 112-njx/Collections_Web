@@ -118,6 +118,8 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans), "PingFang SC", "Hiragino Sans GB",
+      "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
   }
 
   /* Shiki dual theme support */
